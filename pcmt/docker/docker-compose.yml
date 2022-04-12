@@ -1,0 +1,115 @@
+version: '3.5'
+services:
+  fpm:
+    image: '${PCMT_REG}/pcmt:${PCMT_VER:-latest}'
+    restart: unless-stopped
+    environment:
+      - PCMT_PROFILE
+      - PCMT_VER
+    volumes:
+      - type: volume
+        source: pim
+        target: '/srv/pim'
+      - type: volume
+        source: file_storage
+        target: '/srv/pim/app/file_storage'
+      - type: volume
+        source: uploads
+        target: '/srv/pim/app/uploads'
+      - type: volume
+        source: pcmt-fpm-data
+        target: '/run/secrets'
+    user: 'docker'
+    working_dir: '/srv/pim'
+    networks:
+      - 'akeneo'
+
+  httpd:
+    image: '${PCMT_REG}/httpd:${PCMT_VER:-latest}'
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.http.rule=PathPrefix(`/`)"
+    volumes:
+      - type: volume
+        source: pim
+        target: '/srv/pim'
+        read_only: true
+    networks:
+      - 'akeneo'
+    depends_on:
+      - fpm
+
+  mysql:
+    image: 'mysql:${MYSQL_VER}'
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: '/run/secrets/mysql-root-password'
+      MYSQL_USER_FILE: '/run/secrets/mysql-username'
+      MYSQL_PASSWORD_FILE: '/run/secrets/mysql-password'
+      MYSQL_DATABASE: 'akeneo_pim'
+    volumes:
+      - type: volume
+        source: pcmt-mysql-data
+        target: '/run/secrets'
+        read_only: true
+      - type: volume
+        source: pcmt-mysqlinit-data
+        target: '/docker-entrypoint-initdb.d'
+        read_only: true
+      - type: volume
+        source: mysqldata
+        target: '/var/lib/mysql'
+    networks:
+      - 'akeneo'
+
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch-oss:${ES_VER}'
+    restart: unless-stopped
+    environment:
+      ES_JAVA_OPTS: "${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
+      discovery.type: 'single-node'
+    volumes:
+      - 'esdata:/usr/share/elasticsearch/data'
+    networks:
+      - 'akeneo'
+
+  reverse-proxy:
+    image: traefik:v2.0
+    restart: unless-stopped
+    ports:
+      - "${DOCKER_PORT_HTTP:-80}:80"
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+      - type: volume
+        source: pcmt-traefik-data
+        target: /etc/traefik
+        read_only: true
+    networks:
+      - 'akeneo'
+
+volumes:
+  mysqldata:
+    driver: local
+  esdata:
+    driver: local
+  pim:
+    driver: local
+  file_storage:
+    driver: local
+  uploads:
+    driver: local
+  pcmt-traefik-data:
+    external: true
+  pcmt-fpm-data:
+    external: true
+  pcmt-mysql-data:
+    external: true
+  pcmt-mysqlinit-data:
+    external: true
+
+networks:
+  akeneo:    
