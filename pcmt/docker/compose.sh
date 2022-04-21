@@ -34,6 +34,10 @@ if [ "$1" == "init" ]; then
     docker rm pcmt-traefik-helper pcmt-fpm-helper pcmt-mysql-helper pcmt-mysqlinit-helper
 
     docker-compose -p pcmt -f "$composeFilePath"/docker-compose.yml up -d
+
+    "$composeFilePath"/wait-http.sh "http://localhost:${DOCKER_PORT_HTTP}"
+    docker-compose -p pcmt -f "$composeFilePath"/docker-compose.yml exec -T fpm console pim:user:create -n admin Admin123 admin@productcatalog.io admin admin en_US
+
 elif [ "$1" == "up" ]; then
     docker-compose -p pcmt -f "$composeFilePath"/docker-compose.yml up -d
 elif [ "$1" == "down" ]; then

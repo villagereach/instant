@@ -14,3 +14,4 @@ parameters:
     e2Open_import_files_directory: '%kernel.project_dir%/src/PcmtCoreBundle/Resources/E2OpenImport/'
     cis_file_source: 'RHSC'
     cis_file_path: '%kernel.project_dir%/src/PcmtCISBundle/Resources/E2OpenCIS/'
+    installer_data: 'PimInstallerBundle:minimal'
